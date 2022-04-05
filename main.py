@@ -1,33 +1,42 @@
-import numpy as np
-from datasets import load_dataset, load_metric
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from transformers import DataCollatorWithPadding
+from datasets import load_dataset
+from transformers import AutoTokenizer, AutoModel
 from transformers import Trainer, TrainingArguments
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+import torch
+
+from model import SARCBert, SARCBertDataCollator, MAX_ANCESTORS
+
+DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 BASE_MODEL = 'distilbert-base-uncased'
+BATCH_SIZE = 32
 
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
-model = AutoModelForSequenceClassification.from_pretrained(BASE_MODEL, num_labels=2)
-data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-metric = load_metric('accuracy')
+data_collator = SARCBertDataCollator(tokenizer=tokenizer)
 
 
 def preprocess_function(example):
-    # return tokenizer(example['text1'], example['text2'], truncation=True, padding=True)
-    ancestors = ['. '.join(ancestor) for ancestor in example['ancestors']]
-    return tokenizer(example['text'], ancestors, truncation='only_second', padding=True)
+    tokenized_text = tokenizer(example['text'])
+    tokenized_ancestors = {'input_ids': []}
+    for ancestor in example['ancestors']:
+        # Make each sample have MAX_ANCESTORS, by padding with empty comments
+        res = tokenizer(ancestor[:MAX_ANCESTORS] + [""] * (MAX_ANCESTORS - len(ancestor)))
+        tokenized_ancestors['input_ids'].append(res['input_ids'])
+
+    # tokenized_ancestors = tokenizer(example['ancestors'][0])
+
+    return {
+        'input_ids': tokenized_text['input_ids'],
+        'ancestor_input_ids': tokenized_ancestors['input_ids'],
+    }
 
 
 def compute_metrics(eval_pred):
-    # predictions, labels = eval_pred
-    # predictions = np.argmax(predictions, axis=1)
-    #
-    # return metric.compute(predictions=predictions, references=labels)
     labels = eval_pred.label_ids
     preds = eval_pred.predictions.argmax(-1)
     precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
     acc = accuracy_score(labels, preds)
+
     return {
         'accuracy': acc,
         'f1': f1,
@@ -37,24 +46,23 @@ def compute_metrics(eval_pred):
 
 
 def main():
-    # Load the DB
-    should_mini = True
-    prefix = 'mini-' if should_mini else ''
     data_files = {
-        'train': prefix + r'train-pol-balanced.json',
-        'test': prefix + r'test-pol-balanced.json',
+        'train': r'data/train-pol-balanced.json',
+        'test': r'data/test-pol-balanced.json',
     }
     dataset = load_dataset('json', data_files=data_files)
+    tokenized_dataset = dataset.map(preprocess_function, batched=True, batch_size=BATCH_SIZE)
 
-    tokenized_dataset = dataset.map(preprocess_function, batched=True)
+    bert_model = AutoModel.from_pretrained(BASE_MODEL)
+    model = SARCBert(bert_model=bert_model)
+    # model.to(DEVICE)
 
     training_args = TrainingArguments(
         output_dir='./results',
         learning_rate=2e-5,
-        per_device_train_batch_size=64,
-        per_device_eval_batch_size=64,
+        per_device_train_batch_size=BATCH_SIZE,
+        per_device_eval_batch_size=BATCH_SIZE,
         num_train_epochs=4,
-        weight_decay=0.01,
         logging_dir='./logs'
     )
 
@@ -64,11 +72,13 @@ def main():
         train_dataset=tokenized_dataset['train'],
         eval_dataset=tokenized_dataset['test'],
         tokenizer=tokenizer,
+        data_collator=data_collator,
         compute_metrics=compute_metrics
     )
 
     trainer.train()
-    trainer.evaluate()
+    print(trainer.evaluate())
+    print("")
 
 
 if __name__ == '__main__':
