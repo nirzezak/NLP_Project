@@ -1,84 +1,82 @@
-from datasets import load_dataset
-from transformers import AutoTokenizer, AutoModel
-from transformers import Trainer, TrainingArguments
-from sklearn.metrics import accuracy_score, precision_recall_fscore_support
-import torch
+import argparse
 
-from model import SARCBert, SARCBertDataCollator, MAX_ANCESTORS
+import torch.nn
+from transformers import AutoTokenizer
 
-DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-BASE_MODEL = 'distilbert-base-uncased'
-BATCH_SIZE = 32
-
-tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
-data_collator = SARCBertDataCollator(tokenizer=tokenizer)
+import config
+import trainer
+from config import Config
 
 
-def preprocess_function(example):
-    tokenized_text = tokenizer(example['text'])
-    tokenized_ancestors = {'input_ids': []}
-    for ancestor in example['ancestors']:
-        # Make each sample have MAX_ANCESTORS, by padding with empty comments
-        res = tokenizer(ancestor[:MAX_ANCESTORS] + [""] * (MAX_ANCESTORS - len(ancestor)))
-        tokenized_ancestors['input_ids'].append(res['input_ids'])
+def create_config(args: argparse.Namespace) -> Config:
+    if args.roberta:
+        base_model = 'roberta-base'
+    elif args.electra:
+        base_model = 'google/electra-small-discriminator'
+    else:
+        base_model = 'distilbert-base-uncased'
 
-    # tokenized_ancestors = tokenizer(example['ancestors'][0])
+    tokenizer = AutoTokenizer.from_pretrained(base_model)
 
-    return {
-        'input_ids': tokenized_text['input_ids'],
-        'ancestor_input_ids': tokenized_ancestors['input_ids'],
-    }
+    if args.tanh:
+        activation_func = torch.nn.Tanh()
+    else:
+        activation_func = torch.nn.ReLU()
 
+    c = Config(
+        base_model=base_model,
+        tokenizer=tokenizer,
+        activation_func=activation_func,
+        train_file=args.train_file,
+        test_file=args.test_file,
+        batch_size=args.batch_size,
+        use_ancestors=not args.no_ancestors,
+        max_ancestors=args.max_ancestors,
+        ancestors_direction_start=not args.direction_end,
+        epochs=args.epochs
+    )
 
-def compute_metrics(eval_pred):
-    labels = eval_pred.label_ids
-    preds = eval_pred.predictions.argmax(-1)
-    precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
-    acc = accuracy_score(labels, preds)
-
-    return {
-        'accuracy': acc,
-        'f1': f1,
-        'precision': precision,
-        'recall': recall
-    }
+    return c
 
 
 def main():
-    data_files = {
-        'train': r'data/train-pol-balanced.json',
-        'test': r'data/test-pol-balanced.json',
-    }
-    dataset = load_dataset('json', data_files=data_files)
-    tokenized_dataset = dataset.map(preprocess_function, batched=True, batch_size=BATCH_SIZE)
+    parser = argparse.ArgumentParser(description='SARCBert model for sarcasm detection')
 
-    bert_model = AutoModel.from_pretrained(BASE_MODEL)
-    model = SARCBert(bert_model=bert_model)
-    # model.to(DEVICE)
+    # Add the models handler - default is distilbert
+    models_group = parser.add_mutually_exclusive_group()
+    models_group.add_argument('--roberta', action='store_true')
+    models_group.add_argument('--electra', action='store_true')
 
-    training_args = TrainingArguments(
-        output_dir='./results',
-        learning_rate=2e-5,
-        per_device_train_batch_size=BATCH_SIZE,
-        per_device_eval_batch_size=BATCH_SIZE,
-        num_train_epochs=4,
-        logging_dir='./logs'
-    )
+    # Add the activation function handler - default is ReLU
+    activation_group = parser.add_mutually_exclusive_group()
+    activation_group.add_argument('--tanh', action='store_true')
 
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=tokenized_dataset['train'],
-        eval_dataset=tokenized_dataset['test'],
-        tokenizer=tokenizer,
-        data_collator=data_collator,
-        compute_metrics=compute_metrics
-    )
+    # train & test files
+    parser.add_argument('--train_file', type=str, action='store', default=r'data/train-pol-balanced.json')
+    parser.add_argument('--test_file', type=str, action='store', default=r'data/test-pol-balanced.json')
 
-    trainer.train()
-    print(trainer.evaluate())
-    print("")
+    # Batch size
+    parser.add_argument('--batch_size', default=32)
+
+    # Ancestors args
+    parser.add_argument('--no_ancestors', type=bool, default=False)
+    parser.add_argument('--max_ancestors', type=int, default=3)
+    parser.add_argument('--direction_end', type=bool, default=False)
+
+    # Trainer args
+    parser.add_argument('--epochs', type=int, default=4)
+
+    # Get the args
+    args = parser.parse_args()
+
+    # Set the config
+    config.set_config(create_config(args))
+
+    # Train the model
+    trained_model = trainer.train_model(config.get_config())
+
+    # Print results
+    # TODO
 
 
 if __name__ == '__main__':
