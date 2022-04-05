@@ -4,13 +4,12 @@ from transformers import Trainer, TrainingArguments
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 import torch
 
-from model import SARCBert, SARCBertDataCollator
+from model import SARCBert, SARCBertDataCollator, MAX_ANCESTORS
 
 DEVICE = torch.device('cuda:0')
 
 BASE_MODEL = 'distilbert-base-uncased'
-BATCH_SIZE = 64
-MAX_ANCESTORS = 3
+BATCH_SIZE = 32
 
 tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
 data_collator = SARCBertDataCollator(tokenizer=tokenizer)
@@ -63,9 +62,8 @@ def main():
         learning_rate=2e-5,
         per_device_train_batch_size=BATCH_SIZE,
         per_device_eval_batch_size=BATCH_SIZE,
-        num_train_epochs=1,
+        num_train_epochs=4,
         logging_dir='./logs'
-        #dataloader_pin_memory=False
     )
 
     trainer = Trainer(
@@ -79,7 +77,7 @@ def main():
     )
 
     trainer.train()
-    trainer.evaluate()
+    print(trainer.evaluate())
     print("")
 
 
