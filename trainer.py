@@ -55,12 +55,12 @@ def train_model(c: Config) -> Trainer:
 
     # Train the model
     training_args = TrainingArguments(
-        output_dir='./results',
+        output_dir='./huggingface_results',
         learning_rate=2e-5,
         per_device_train_batch_size=c.batch_size,
         per_device_eval_batch_size=c.batch_size,
         num_train_epochs=c.epochs,
-        logging_dir='./logs'
+        logging_dir='./huggingface_logs'
     )
 
     trainer = Trainer(
