@@ -12,13 +12,13 @@ class SARCBert(nn.Module):
     def __init__(self, bert_model, config):
         super(SARCBert, self).__init__()
         self.bert = bert_model
-        self.config = config
+        self.run_config = config
 
-        if self.config.use_ancestors:
-            in_size = self.config.max_ancestors * self.bert.config.hidden_size
+        if self.run_config.use_ancestors:
+            in_size = self.run_config.max_ancestors * self.bert.config.hidden_size
             out_size = self.bert.config.hidden_size
             self.ancestor_layer = nn.Linear(in_features=in_size, out_features=out_size)
-
+            self.ancestor_activation_layer = self.run_config.activation_func
             self.classifier = nn.Linear(in_features=self.bert.config.hidden_size * 2, out_features=2)
         else:
             self.classifier = nn.Linear(in_features=self.bert.config.hidden_size, out_features=2)
@@ -30,22 +30,22 @@ class SARCBert(nn.Module):
         input_cls_tokens = input_bert_res.last_hidden_state[:, 0, :]
 
         # Handle the case of no ancestors:
-        if not self.config.use_ancestors:
+        if not self.run_config.use_ancestors:
             res = self.classifier(input_cls_tokens)
             loss = self.loss(res, labels)
             return {'loss': loss, 'logits': res}
 
         ancestor_bert_res = []
-        for i in range(self.config.max_ancestors):
+        for i in range(self.run_config.max_ancestors):
             ancestor_bert_res.append(self.bert(ancestor_input_ids[i], ancestor_attention_mask[i]))
 
         ancestor_cls_tokens = []
-        for i in range(self.config.max_ancestors):
+        for i in range(self.run_config.max_ancestors):
             ancestor_cls_tokens.append(ancestor_bert_res[i].last_hidden_state[:, 0, :])
 
         ancestor_cls_tokens = torch.cat(ancestor_cls_tokens, dim=1)
         ancestor_cls_tokens = self.ancestor_layer(ancestor_cls_tokens)
-        ancestor_cls_tokens = self.config.activation_func(ancestor_cls_tokens)
+        ancestor_cls_tokens = self.ancestor_activation_layer(ancestor_cls_tokens)
 
         concat_cls_tokens = torch.cat([input_cls_tokens, ancestor_cls_tokens], dim=1).to(DEVICE)
         res = self.classifier(concat_cls_tokens)

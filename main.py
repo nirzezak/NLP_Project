@@ -99,10 +99,10 @@ def print_config(c: Config):
 def print_results(res: Dict, c: Config):
     # Print output
     print_title('Results')
-    print(f'Accuracy: {res["accuracy"]}')
-    print(f'F1 score: {res["f1"]}')
-    print(f'Precision: {res["precision"]}')
-    print(f'Recall: {res["recall"]}')
+    print(f'Accuracy: {res["eval_accuracy"]}')
+    print(f'F1 score: {res["eval_f1"]}')
+    print(f'Precision: {res["eval_precision"]}')
+    print(f'Recall: {res["eval_recall"]}')
 
     # Save run data to json file
     saved_data = {
@@ -112,10 +112,10 @@ def print_results(res: Dict, c: Config):
         'test_file': c.test_file,
         'batch_size': c.batch_size,
         'epochs': c.epochs,
-        'accuracy': res['accuracy'],
-        'f1': res['f1'],
-        'precision': res['precision'],
-        'recall': res['recall'],
+        'accuracy': res['eval_accuracy'],
+        'f1': res['eval_f1'],
+        'precision': res['eval_precision'],
+        'recall': res['eval_recall'],
     }
 
     ancestors_data = {
@@ -132,7 +132,7 @@ def print_results(res: Dict, c: Config):
     if not os.path.exists('./results'):
         os.mkdir('./results')
 
-    file_name = datetime.datetime.now().strftime('run_log_%Y_%m_%d_%H_%M_%s.json')
+    file_name = datetime.datetime.now().strftime('./results/run_log_%Y_%m_%d_%H_%M_%s.json')
     with open(file_name, 'w') as f:
         json.dump(saved_data, f, indent=4)
 
