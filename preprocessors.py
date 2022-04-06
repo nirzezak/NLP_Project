@@ -51,9 +51,10 @@ def preprocess_ancestors_from_start(example: Dict) -> Dict:
 
     # Tokenize an empty ancestor comment
     max_ancestors = get_config().max_ancestors
+    used_ancestors = get_config().used_ancestors
     tokenized_ancestors = {'input_ids': []}
     for ancestor in example['ancestors']:
-        taken_ancestors = ancestor[:max_ancestors]
+        taken_ancestors = ancestor[:used_ancestors]
         res = tokenizer(taken_ancestors + [""] * (max_ancestors - len(taken_ancestors)))
         tokenized_ancestors['input_ids'].append(res['input_ids'])
 
@@ -75,9 +76,10 @@ def preprocess_ancestors_from_end(example: Dict) -> Dict:
 
     # Tokenize an empty ancestor comment
     max_ancestors = get_config().max_ancestors
+    used_ancestors = get_config().used_ancestors
     tokenized_ancestors = {'input_ids': []}
     for ancestor in example['ancestors']:
-        taken_ancestors = ancestor[-max_ancestors:]
+        taken_ancestors = ancestor[-used_ancestors:]
         res = tokenizer(taken_ancestors + [""] * (max_ancestors - len(taken_ancestors)))
         tokenized_ancestors['input_ids'].append(res['input_ids'])
 

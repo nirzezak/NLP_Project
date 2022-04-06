@@ -15,6 +15,7 @@ class Config:
     batch_size: int = 32
     use_ancestors: bool = True
     max_ancestors: int = 3
+    used_ancestors: int = 3
     ancestors_direction_start: bool = True
     epochs: int = 4
 

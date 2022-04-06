@@ -38,7 +38,7 @@ def train_model(c: Config) -> Trainer:
     # Choose correct preprocess function
     if not c.use_ancestors:
         preprocess_function = preprocessors.preprocess_no_ancestors
-    elif c.max_ancestors == 0:
+    elif c.used_ancestors == 0:
         preprocess_function = preprocessors.preprocess_empty_ancestors
     elif c.ancestors_direction_start:
         preprocess_function = preprocessors.preprocess_ancestors_from_start

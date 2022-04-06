@@ -37,6 +37,7 @@ def create_config(args: argparse.Namespace) -> Config:
         batch_size=args.batch_size,
         use_ancestors=not args.no_ancestors,
         max_ancestors=args.max_ancestors,
+        used_ancestors=min(args.max_ancestors, args.used_ancestors),
         ancestors_direction_start=not args.direction_end,
         epochs=args.epochs
     )
@@ -66,6 +67,7 @@ def build_args_parser() -> argparse.ArgumentParser:
     # Ancestors args
     parser.add_argument('--no_ancestors', type=bool, default=False)
     parser.add_argument('--max_ancestors', type=int, default=3)
+    parser.add_argument('--used_ancestors', type=int, default=3)
     parser.add_argument('--direction_end', type=bool, default=False)
 
     # Trainer args
@@ -90,7 +92,7 @@ def print_config(c: Config):
     if c.use_ancestors:
         direction = 'start' if c.ancestors_direction_start else 'end'
         print(f'Activation function: {str(c.activation_func)[:-2]}')
-        print(f'Max ancestors used: {c.max_ancestors}')
+        print(f'Ancestors used: {c.used_ancestors} (padded to {c.max_ancestors})')
         print(f'Taking ancestors from the {direction} of the ancestors list')
 
 
@@ -121,6 +123,7 @@ def print_results(res: Dict, c: Config):
     }
     if c.use_ancestors:
         ancestors_data['max_ancestors'] = c.max_ancestors
+        ancestors_data['used_ancestors'] = c.used_ancestors
         ancestors_data['direction_start'] = c.ancestors_direction_start
 
     saved_data['ancestors_data'] = ancestors_data
