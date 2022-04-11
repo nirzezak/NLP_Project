@@ -46,7 +46,7 @@ def train_model(c: Config) -> Trainer:
         preprocess_function = preprocessors.preprocess_ancestors_from_end
 
     # Tokenize the dataset
-    tokenized_dataset = dataset.map(preprocess_function, batched=True, batch_size=c.batch_size)
+    tokenized_dataset = dataset.map(preprocess_function, batched=True, batch_size=c.batch_size, load_from_cache_file=False)
 
     # Create our model
     pretrained_model = AutoModel.from_pretrained(c.base_model)
