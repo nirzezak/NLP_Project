@@ -41,7 +41,7 @@ mv results/run_log_* results/test_end_ancestors_3.json
 ############################################################
 # SARCBERT with RoBERTa
 echo "SARCBERT with RoBERTa"
-python main.py --roberta
+python main.py --roberta --batch_size=8
 mv results/run_log_* results/test_roberta.json
 
 ############################################################
