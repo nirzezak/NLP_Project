@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import time
 import json
 import os.path
 from typing import Dict
@@ -62,13 +63,13 @@ def build_args_parser() -> argparse.ArgumentParser:
     parser.add_argument('--test_file', type=str, action='store', default=r'data/test-pol-balanced.json')
 
     # Batch size
-    parser.add_argument('--batch_size', default=32)
+    parser.add_argument('--batch_size', type=int, default=32)
 
     # Ancestors args
-    parser.add_argument('--no_ancestors', type=bool, default=False)
+    parser.add_argument('--no_ancestors', action='store_true', default=False)
     parser.add_argument('--max_ancestors', type=int, default=3)
     parser.add_argument('--used_ancestors', type=int, default=3)
-    parser.add_argument('--direction_end', type=bool, default=False)
+    parser.add_argument('--direction_end', action='store_true', default=False)
 
     # Trainer args
     parser.add_argument('--epochs', type=int, default=4)
@@ -96,7 +97,7 @@ def print_config(c: Config):
         print(f'Taking ancestors from the {direction} of the ancestors list')
 
 
-def print_results(res: Dict, c: Config):
+def print_results(res: Dict, c: Config, train_time: float):
     # Print output
     print_title('Results')
     print(f'Accuracy: {res["eval_accuracy"]}')
@@ -112,6 +113,7 @@ def print_results(res: Dict, c: Config):
         'test_file': c.test_file,
         'batch_size': c.batch_size,
         'epochs': c.epochs,
+        'train_time': train_time,
         'accuracy': res['eval_accuracy'],
         'f1': res['eval_f1'],
         'precision': res['eval_precision'],
@@ -144,12 +146,14 @@ def main(args: argparse.Namespace):
     print_config(c)
 
     # Train the model
+    start_time = time.time()
     print_title('Training')
     trained_model = trainer.train_model(config.get_config())
+    train_time = (time.time() - start_time) / 60
 
     # Print results
     result_metrics = trained_model.evaluate()
-    print_results(result_metrics, c)
+    print_results(result_metrics, c, train_time)
 
 
 if __name__ == '__main__':
