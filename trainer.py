@@ -60,6 +60,7 @@ def train_model(c: Config) -> Trainer:
         per_device_train_batch_size=c.batch_size,
         per_device_eval_batch_size=c.batch_size,
         num_train_epochs=c.epochs,
+        weight_decay=0.01,
         logging_dir='./huggingface_logs'
     )
 

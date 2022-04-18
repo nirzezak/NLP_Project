@@ -36,7 +36,7 @@ mv results/run_log_* results/test_end_ancestors_3.json
 ############################################################
 # SARCBERT with unbalanced
 # python main.py --train_file "data/train-pol-unbalanced.json" --test_file "data/test-pol-unbalanced.json"
-# mv results/run_log_* results/test_start_ancestors_1.json
+# mv results/run_log_*  results/test_start_ancestors_1.json
 
 ############################################################
 # SARCBERT with RoBERTa
@@ -48,4 +48,4 @@ mv results/run_log_* results/test_roberta.json
 # SARCBERT with Electra
 echo "SARCBERT with Electra"
 python main.py --electra
-mv results/run_log_* results/test_electra.json
+mv results/run_log_* results/test_electra_20.json
