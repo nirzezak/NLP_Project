@@ -17,9 +17,12 @@ class SARCBert(nn.Module):
         if self.run_config.use_ancestors:
             in_size = self.run_config.max_ancestors * self.bert.config.hidden_size
             out_size = self.bert.config.hidden_size
-            self.ancestor_layer = nn.Linear(in_features=in_size, out_features=out_size)
-            self.ancestor_activation_layer = self.run_config.activation_func
-            self.classifier = nn.Linear(in_features=self.bert.config.hidden_size * 2, out_features=2)
+            self.ancestor_layer = nn.LSTM(input_size=self.bert.config.hidden_size,
+                                          hidden_size=self.bert.config.hidden_size, num_layers=2, batch_first=False,
+                                          dropout=0.3, bidirectional=True)
+            # self.ancestor_layer = nn.Linear(in_features=in_size, out_features=out_size)
+            # self.ancestor_activation_layer = self.run_config.activation_func
+            self.classifier = nn.Linear(in_features=self.bert.config.hidden_size * 3, out_features=2)
         else:
             self.classifier = nn.Linear(in_features=self.bert.config.hidden_size, out_features=2)
         self.loss = nn.CrossEntropyLoss()
@@ -41,13 +44,23 @@ class SARCBert(nn.Module):
 
         ancestor_cls_tokens = []
         for i in range(self.run_config.max_ancestors):
-            ancestor_cls_tokens.append(ancestor_bert_res[i].last_hidden_state[:, 0, :])
+            # Use DAN as a way to represent a sentence
+            tokens = ancestor_bert_res[i].last_hidden_state
+            tokens_sum = tokens.sum(dim=1)
+            active_tokens = ancestor_attention_mask[i].sum(dim=1)
+            tokens_avg = tokens_sum / active_tokens.unsqueeze(dim=1)
+            ancestor_cls_tokens.append(tokens_avg)
+            # ancestor_cls_tokens.append(ancestor_bert_res[i].last_hidden_state[:, 0, :])
 
-        ancestor_cls_tokens = torch.cat(ancestor_cls_tokens, dim=1)
-        ancestor_cls_tokens = self.ancestor_layer(ancestor_cls_tokens)
-        ancestor_cls_tokens = self.ancestor_activation_layer(ancestor_cls_tokens)
+        # ancestor_cls_tokens = torch.cat(ancestor_cls_tokens, dim=1)
+        # ancestor_cls_tokens = self.ancestor_layer(ancestor_cls_tokens)
+        # ancestor_cls_tokens = self.ancestor_activation_layer(ancestor_cls_tokens)
 
-        concat_cls_tokens = torch.cat([input_cls_tokens, ancestor_cls_tokens], dim=1).to(DEVICE)
+        ancestor_cls_tokens = torch.stack(ancestor_cls_tokens)
+        lstm_output, _ = self.ancestor_layer(ancestor_cls_tokens)
+        final_lstm_state = lstm_output[-1]
+
+        concat_cls_tokens = torch.cat([input_cls_tokens, final_lstm_state], dim=1).to(DEVICE)
         res = self.classifier(concat_cls_tokens)
         loss = self.loss(res, labels)
         return {'loss': loss, 'logits': res}

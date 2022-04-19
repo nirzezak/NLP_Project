@@ -62,13 +62,13 @@ def build_args_parser() -> argparse.ArgumentParser:
     parser.add_argument('--test_file', type=str, action='store', default=r'data/test-pol-balanced.json')
 
     # Batch size
-    parser.add_argument('--batch_size', default=32)
+    parser.add_argument('--batch_size', type=int, default=32)
 
     # Ancestors args
-    parser.add_argument('--no_ancestors', type=bool, default=False)
+    parser.add_argument('--no_ancestors', action='store_true')
     parser.add_argument('--max_ancestors', type=int, default=3)
     parser.add_argument('--used_ancestors', type=int, default=3)
-    parser.add_argument('--direction_end', type=bool, default=False)
+    parser.add_argument('--direction_end', action='store_true')
 
     # Trainer args
     parser.add_argument('--epochs', type=int, default=4)
