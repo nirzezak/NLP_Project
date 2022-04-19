@@ -19,7 +19,7 @@ class SARCBert(nn.Module):
             out_size = self.bert.config.hidden_size
             self.ancestor_layer = nn.LSTM(input_size=self.bert.config.hidden_size,
                                           hidden_size=self.bert.config.hidden_size, num_layers=2, batch_first=False,
-                                          dropout=0.3, bidirectional=True)
+                                          dropout=0.1, bidirectional=True)
             # self.ancestor_layer = nn.Linear(in_features=in_size, out_features=out_size)
             # self.ancestor_activation_layer = self.run_config.activation_func
             self.classifier = nn.Linear(in_features=self.bert.config.hidden_size * 3, out_features=2)

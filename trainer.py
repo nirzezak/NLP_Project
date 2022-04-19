@@ -2,7 +2,7 @@ from typing import Dict
 
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from datasets import load_dataset
-from transformers import AutoModel
+from transformers import AutoModel, EarlyStoppingCallback
 from transformers import Trainer, TrainingArguments
 
 import preprocessors
@@ -46,7 +46,7 @@ def train_model(c: Config) -> Trainer:
         preprocess_function = preprocessors.preprocess_ancestors_from_end
 
     # Tokenize the dataset
-    tokenized_dataset = dataset.map(preprocess_function, batched=True, batch_size=c.batch_size)
+    tokenized_dataset = dataset.map(preprocess_function, batched=True, batch_size=c.batch_size, load_from_cache_file=False)
 
     # Create our model
     pretrained_model = AutoModel.from_pretrained(c.base_model)
@@ -56,11 +56,19 @@ def train_model(c: Config) -> Trainer:
     # Train the model
     training_args = TrainingArguments(
         output_dir='./huggingface_results',
-        learning_rate=2e-5,
+        learning_rate=3e-5,
         per_device_train_batch_size=c.batch_size,
         per_device_eval_batch_size=c.batch_size,
         num_train_epochs=c.epochs,
-        logging_dir='./huggingface_logs'
+        logging_dir='./huggingface_logs',
+        evaluation_strategy='steps',
+        weight_decay=1e-5,
+        eval_steps=200,
+        save_strategy='steps',
+        save_steps=200,
+        seed=100,
+        load_best_model_at_end=True,
+        metric_for_best_model='f1',
     )
 
     trainer = Trainer(
@@ -70,7 +78,8 @@ def train_model(c: Config) -> Trainer:
         eval_dataset=tokenized_dataset['test'],
         tokenizer=c.tokenizer,
         data_collator=data_collator,
-        compute_metrics=compute_metrics
+        compute_metrics=compute_metrics,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
     )
 
     trainer.train()
